@@ -26,9 +26,13 @@ type WikiPageResponse struct {
 	} `json:"data"`
 }
 
-const urlTemplate = "https://www.reddit.com/r/%s/wiki/"
+const (
+	urlTemplate   = "https://www.reddit.com/r/%s/wiki/"
+	usageTemplate = `Usage: %s <subreddit_name> [output_dir]
 
-// TODO: take this as a CLI argument
+output_dir defaults to the current diretory if not provided.`
+)
+
 var outputDir = "."
 
 func getPage(subreddit string, page string, outputDir string) error {
@@ -64,9 +68,28 @@ func getPage(subreddit string, page string, outputDir string) error {
 	return nil
 }
 
+func printUsageAndFail() {
+	log.SetFlags(0)
+	log.Println()
+	log.Fatalf(usageTemplate, path.Base(os.Args[0]))
+}
+
 func main() {
-	// TODO: add this from CLI
-	subreddit := "germany"
+	if len(os.Args) < 2 {
+		log.Println("One argument required: subreddit_name")
+		printUsageAndFail()
+	}
+	var subreddit string
+	if len(os.Args) >= 2 {
+		subreddit = os.Args[1]
+	}
+	if len(os.Args) == 3 {
+		outputDir = os.Args[2]
+	}
+	if len(os.Args) > 3 {
+		log.Printf("%s doesn't take more than 2 arguments", os.Args[0])
+		printUsageAndFail()
+	}
 	baseURL := fmt.Sprintf(urlTemplate, subreddit)
 	pageListingURL := baseURL + "pages.json"
 
