@@ -46,13 +46,13 @@ func getPage(subreddit string, page string, outputDir string) error {
 	pageURL := baseURL + page + ".json"
 	response, err := http.Get(pageURL)
 	if err != nil {
-		return fmt.Errorf("request to get page data from %s failed: %w", pageURL, err)
+		return fmt.Errorf("request to %s failed: %w", pageURL, err)
 	}
 	if response.StatusCode == 429 {
-		return fmt.Errorf("request to get page data from %s failed: %w", pageURL, RateLimitErr)
+		return fmt.Errorf("request to %s failed: %w", pageURL, RateLimitErr)
 	}
 	if response.StatusCode != 200 {
-		return fmt.Errorf("request to get page data from %s failed with error code %s", pageURL, response.Status)
+		return fmt.Errorf("request to %s failed with error code %s", pageURL, response.Status)
 	}
 
 	pageResponseBytes, err := io.ReadAll(response.Body)
