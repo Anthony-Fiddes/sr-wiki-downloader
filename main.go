@@ -134,7 +134,7 @@ func main() {
 			retry := false
 			err = getPage(subreddit, page, outputDir)
 			if errors.Is(err, RateLimitErr) {
-				log.Printf("Attempt %d to request %s was rate limited", i, wikiPage)
+				log.Printf("Attempt %d to request %s was rate limited", i+1, wikiPage)
 				retry = true
 			} else if err != nil {
 				log.Printf("Could not get %s: %s", wikiPage, err)
