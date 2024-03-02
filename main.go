@@ -49,10 +49,10 @@ func getPage(subreddit string, page string, outputDir string) error {
 		return fmt.Errorf("request to %s failed: %w", pageURL, err)
 	}
 	if response.StatusCode == 429 {
-		return fmt.Errorf("request to %s failed: %w", pageURL, RateLimitErr)
+		return fmt.Errorf("bad response from %s: %w", pageURL, RateLimitErr)
 	}
 	if response.StatusCode != 200 {
-		return fmt.Errorf("request to %s failed with error code %s", pageURL, response.Status)
+		return fmt.Errorf("bad response '%s' from %s", response.Status, pageURL)
 	}
 
 	pageResponseBytes, err := io.ReadAll(response.Body)
@@ -63,12 +63,12 @@ func getPage(subreddit string, page string, outputDir string) error {
 	pageResponse := WikiPageResponse{}
 	err = json.Unmarshal(pageResponseBytes, &pageResponse)
 	if err != nil {
-		return fmt.Errorf("could not parse the JSON from %s: %w", pageURL, err)
+		return fmt.Errorf("could not parse the JSON response from %s: %w", pageURL, err)
 	}
 
 	markdownBytes := []byte(pageResponse.Data.ContentMd)
 	if len(markdownBytes) == 0 {
-		return fmt.Errorf("no markdown content found for r/%s/wiki/%s", subreddit, page)
+		return fmt.Errorf("no markdown content found", subreddit, page)
 	}
 
 	folder := path.Dir(page)
@@ -134,7 +134,7 @@ func main() {
 			retry := false
 			err = getPage(subreddit, page, outputDir)
 			if errors.Is(err, RateLimitErr) {
-				log.Printf("Attempt %d to request %s was rate limited", i+1, wikiPage)
+				log.Printf("Attempt %d to get %s was rate limited", i+1, wikiPage)
 				retry = true
 			} else if err != nil {
 				log.Printf("Could not get %s: %s", wikiPage, err)
