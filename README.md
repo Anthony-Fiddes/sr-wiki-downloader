@@ -1,12 +1,13 @@
 # sr-wiki-downloader
 
-This is a **s**ub**r**eddit **w**iki **d**ownloader. I started working on it
-when I realized that the API existed (referenced in this
-[post](https://www.reddit.com/r/DataHoarder/comments/ga2p8y/comment/foxdvju/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button)
-), but before I realized that Reddit will rate limit you if you make more than
-10 requests per minute when you're not logged in. That means it's pretty slow to
-download a subreddit's wiki, but if you just want to have a copy on your
-computer, it works.
+This is a **s**ub**r**eddit wiki downloader. I started working on it when I
+realized that the API existed (referenced in this
+[post](https://www.reddit.com/r/DataHoarder/comments/ga2p8y/comment/foxdvju/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button)),
+but before I realized that Reddit will rate limit you if you make more than
+10 requests per minute when you're not logged in. It was a fun little script
+that served my purposes well, but it's pretty slow. If you just want to get a
+subreddit's wiki on your computer and you can spare 6-8 seconds per page
+download, then try it out.
 
 # Usage
 
@@ -15,6 +16,7 @@ You can just clone the repo and use go run.
 Example:
 
 ```
+❯ git clone https://github.com/Anthony-Fiddes/sr-wiki-downloader.git && cd sr-wiki-downloader
 ❯ go run . germany ./test
 2024/03/01 19:42:59 Successfully downloaded r/germany/wiki/index
 2024/03/01 19:43:05 Successfully downloaded r/germany/wiki/american-dream
