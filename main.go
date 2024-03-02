@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path"
+	"time"
 )
 
 type WikiPageListingResponse struct {
@@ -27,42 +29,58 @@ type WikiPageResponse struct {
 }
 
 const (
-	urlTemplate   = "https://www.reddit.com/r/%s/wiki/"
-	usageTemplate = `Usage: %s <subreddit_name> [output_dir]
+	urlTemplate      = "https://www.reddit.com/r/%s/wiki/"
+	wikiPageTemplate = "r/%s/wiki/%s"
+	usageTemplate    = `Usage: %s <subreddit_name> [output_dir]
 
 output_dir defaults to the current diretory if not provided.`
 )
 
-var outputDir = "."
+var (
+	outputDir    = "."
+	RateLimitErr = errors.New("reddit rate limited the request")
+)
 
 func getPage(subreddit string, page string, outputDir string) error {
 	baseURL := fmt.Sprintf(urlTemplate, subreddit)
 	pageURL := baseURL + page + ".json"
 	response, err := http.Get(pageURL)
 	if err != nil {
-		return fmt.Errorf("Request to get page data from %s failed: %w", pageURL, err)
+		return fmt.Errorf("request to get page data from %s failed: %w", pageURL, err)
 	}
+	if response.StatusCode == 429 {
+		return fmt.Errorf("request to get page data from %s failed: %w", pageURL, RateLimitErr)
+	}
+	if response.StatusCode != 200 {
+		return fmt.Errorf("request to get page data from %s failed with error code %s", pageURL, response.Status)
+	}
+
 	pageResponseBytes, err := io.ReadAll(response.Body)
+	response.Body.Close()
 	if err != nil {
-		return fmt.Errorf("Could not read the response body from %s: %w", pageURL, err)
+		return fmt.Errorf("could not read the response body from %s: %w", pageURL, err)
 	}
 	pageResponse := WikiPageResponse{}
 	err = json.Unmarshal(pageResponseBytes, &pageResponse)
 	if err != nil {
-		return fmt.Errorf("Could not parse the JSON from %s: %w", pageURL, err)
+		return fmt.Errorf("could not parse the JSON from %s: %w", pageURL, err)
 	}
 
 	markdownBytes := []byte(pageResponse.Data.ContentMd)
+	if len(markdownBytes) == 0 {
+		return fmt.Errorf("no markdown content found for r/%s/wiki/%s", subreddit, page)
+	}
+
 	folder := path.Dir(page)
 	finalDir := path.Join(outputDir, folder)
 	err = os.MkdirAll(finalDir, 0750)
 	if err != nil {
-		return fmt.Errorf("Could not create the folder '%s': %w", finalDir, err)
+		return fmt.Errorf("could not create the folder '%s': %w", finalDir, err)
 	}
 	finalFilePath := path.Join(finalDir, path.Base(page)+".md")
 	err = os.WriteFile(finalFilePath, markdownBytes, 0644)
 	if err != nil {
-		return fmt.Errorf("Could not write the markdown file for the wiki page to '%s': %w", finalFilePath, err)
+		return fmt.Errorf("could not write the markdown file for the wiki page to '%s': %w", finalFilePath, err)
 	}
 
 	return nil
@@ -106,12 +124,30 @@ func main() {
 	if err != nil {
 		log.Panicf("Could not parse the list of wiki pages for r/%s: %s", subreddit, err)
 	}
-	fmt.Println(wikiPageListing)
 
-	for _, page := range wikiPageListing.Data {
-		err = getPage(subreddit, page, outputDir)
-		if err != nil {
-			log.Printf("Could not get r/%s/wiki/%s: %s", subreddit, page, err)
+	listingWithIndex := make([]string, 0, len(wikiPageListing.Data)+1)
+	listingWithIndex = append(listingWithIndex, "index")
+	listingWithIndex = append(listingWithIndex, wikiPageListing.Data...)
+	for _, page := range listingWithIndex {
+		wikiPage := fmt.Sprintf(wikiPageTemplate, subreddit, page)
+		for i := 0; i < 3; i++ {
+			retry := false
+			err = getPage(subreddit, page, outputDir)
+			if errors.Is(err, RateLimitErr) {
+				log.Printf("Attempt %d to request %s was rate limited", i, wikiPage)
+				retry = true
+			} else if err != nil {
+				log.Printf("Could not get %s: %s", wikiPage, err)
+			} else {
+				log.Printf("Successfully downloaded %s", wikiPage)
+			}
+
+			// Without authenticating to the Reddit API, you're only allowed 10
+			// requests per minute.
+			time.Sleep(time.Minute/10 + 1)
+			if !retry {
+				break
+			}
 		}
 	}
 }
